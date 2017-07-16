@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Globe Plotter</title>
+    <link type="text/css" rel="stylesheet" href="./css/normalize.css" />
+    <link type="text/css" rel="stylesheet" href="./css/skeleton.css" />
+    <link type="text/css" rel="stylesheet" href="./css/globe.css" />
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/spectrum/1.8.0/spectrum.min.css">
+
+    <link href="https://fonts.googleapis.com/css?family=Raleway" rel="stylesheet"> 
+  </head>
+  <body>
+    <div class="container">
+      <h1 class="title">Globe Plotter</h1>
+      <div class="message"> Upload a GeoJSON file and have it plotted on a globe</div>
+  
+      
+      <br>
+      <form class="form-signin" method="post" action="/upload" enctype="multipart/form-data">
+          <fieldset>
+            <input type="file" name="geojson" id="geojson">
+            <br>
+            <br>
+              <div class="row">
+                  <label> Center Latitude (Optional) </label>
+                  <input type="text" name="latitude" id="latitude">
+              </div>
+              <div>
+                  <label> Center Longitude (Optional) </label>
+                  <input type="text" name="longitude" id="longitude">
+              </div>
+              
+              <div>
+                <input id='colorpicker' />
+                <input type="hidden" name="colorpicker" value="">
+              </div>
+
+            <br>
+            <input type="hidden" name="uuid" value="">
+            <input type="submit" name="submit" value="Submit">
+        </fieldset>
+      </form>
+
+      <span class="status-holder"> 
+          Status: <span class="status">Awaiting Upload</span> 
+      </span>
+      <div class="output"></div>
+      <br>
+      <br>
+      <div class="show"> 
+        Latitude and Longitude will default to 0, 0 if not set. 
+        <br>
+        No GeoJSON file? Why not try the example Earthquake dataset 
+      </div>
+
+    </div>
+    <script
+			  src="https://code.jquery.com/jquery-3.2.1.min.js"
+			  integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
+        crossorigin="anonymous"></script>
+    <script src="http://wzrd.in/standalone/uuid%2Fv4@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/spectrum/1.8.0/spectrum.min.js"></script>
+
+    <script src="js/globe.js"></script>
+
+  </body>
+</html>
