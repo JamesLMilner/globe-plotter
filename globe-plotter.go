@@ -41,7 +41,7 @@ func display(w http.ResponseWriter, tmpl string, data interface{}) {
 	templates.ExecuteTemplate(w, tmpl+".html", data)
 }
 
-func createImage(filename string, uploadPath string, rgbaColors rgba, longitude float64, latitude float64) {
+func createImage(filename string, uploadPath string, rgbaColors rgba, longitude float64, latitude float64) string {
 
 	geojson, err := loadFeatureCollection(uploadPath)
 	if err != nil {
@@ -71,8 +71,7 @@ func createImage(filename string, uploadPath string, rgbaColors rgba, longitude 
 		log.Fatal(err)
 	}
 
-	go deleteFile(uploadPath, 1)
-	go deleteFile(pngPath, 30)
+	return pngPath
 
 }
 
@@ -98,6 +97,7 @@ func deleteFile(path string, seconds int) {
 	}
 }
 
+// For packing values into
 type rgba struct {
 	R uint8 `json:"r"`
 	G uint8 `json:"g"`
@@ -105,6 +105,7 @@ type rgba struct {
 	A uint8 `json:"a"`
 }
 
+// Return the RGBA color as a nice struct
 func getRgbaColor(rgbaStr string) rgba {
 
 	in := []byte(rgbaStr)
@@ -164,23 +165,31 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
+
 			//create destination file making sure the path is writeable.
-			uploadPath = "./upload/" + files[i].Filename
+			uploadPath = "./upload/" + uuid + "_" + files[i].Filename
 			dst, err := os.Create(uploadPath)
 			defer dst.Close()
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
+
 			//copy the uploaded file to the destination file
 			if _, err := io.Copy(dst, file); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 
+			log.Println("Upload successful: " + uploadPath)
+
 		}
 
-		createImage(uuid, uploadPath, rgbaColors, longitude, latitude)
+		pngPath := createImage(uuid, uploadPath, rgbaColors, longitude, latitude)
+
+		// Tidy up files
+		go deleteFile(uploadPath, 1)
+		go deleteFile(pngPath, 30)
 
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
