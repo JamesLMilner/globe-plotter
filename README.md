@@ -1,11 +1,17 @@
 # Globe Plotter
 
-# Uses
+Visualise GeoJSON on a skeleton globe.
 
-Globe
-Skeleton CSS
-Spectrum
-Node UUID
+# Dependencies
+
+## Go
+- Globe
+- geojson
+
+## JavaScript
+- Spectrum 
+- Skeleton CSS
+- Node UUID
 
 # License 
 MIT License
