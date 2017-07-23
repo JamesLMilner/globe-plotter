@@ -35,7 +35,7 @@ func getPort() string {
 	return port
 }
 
-var templates = template.Must(template.ParseFiles("static/globe.html"))
+var templates = template.Must(template.ParseFiles("static/index.html"))
 
 func display(w http.ResponseWriter, tmpl string, data interface{}) {
 	templates.ExecuteTemplate(w, tmpl+".html", data)
