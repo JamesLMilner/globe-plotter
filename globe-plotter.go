@@ -18,10 +18,21 @@ import (
 
 func main() {
 
+	port := getPort()
 	fs := http.FileServer(http.Dir("./static/"))
 	http.Handle("/", fs)
 	http.HandleFunc("/upload", uploadHandler)
-	http.ListenAndServe(":8080", nil)
+	http.ListenAndServe(port, nil)
+}
+
+func getPort() string {
+	var port string
+	if os.Getenv("PORT") != "" {
+		port = ":" + os.Getenv("PORT")
+	} else {
+		port = ":8080"
+	}
+	return port
 }
 
 var templates = template.Must(template.ParseFiles("static/globe.html"))
