@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/mmcloughlin/globe"
 	geojson "github.com/paulmach/go.geojson"
@@ -29,9 +30,9 @@ func display(w http.ResponseWriter, tmpl string, data interface{}) {
 	templates.ExecuteTemplate(w, tmpl+".html", data)
 }
 
-func createImage(filename string, uploadUrl string, rgbaColors rgba, longitude float64, latitude float64) {
+func createImage(filename string, uploadPath string, rgbaColors rgba, longitude float64, latitude float64) {
 
-	geojson, err := LoadFeatureCollection(uploadUrl)
+	geojson, err := loadFeatureCollection(uploadPath)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -40,11 +41,11 @@ func createImage(filename string, uploadUrl string, rgbaColors rgba, longitude f
 	g.DrawGraticule(20.0)
 	g.DrawLandBoundaries()
 	//g.DrawCountryBoundaries()
+
 	color := color.RGBA{rgbaColors.R, rgbaColors.G, rgbaColors.B, rgbaColors.A}
 
 	for _, geometries := range geojson.Features {
 		if geometries.Geometry.IsPoint() {
-			//log.Println("Point")
 			coords := geometries.Geometry.Point
 			// Lat, Lng, something, color
 			g.DrawDot(coords[0], coords[1], 0.02, globe.Color(color))
@@ -53,9 +54,36 @@ func createImage(filename string, uploadUrl string, rgbaColors rgba, longitude f
 
 	g.CenterOn(latitude, longitude)
 
-	err = g.SavePNG("./static/generated/"+filename+".png", 800)
+	pngPath := "./static/generated/" + filename + ".png"
+	err = g.SavePNG(pngPath, 800)
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	go deleteFile(uploadPath, 1)
+	go deleteFile(pngPath, 30)
+
+}
+
+// Delete a file some period of time in the future
+func deleteFile(path string, seconds int) {
+
+	wait := time.Second * 20
+	timeout := make(chan error, 1)
+	go func() {
+		time.Sleep(wait)
+		var err = os.Remove(path)
+		timeout <- err
+	}()
+
+	select {
+	case err := <-timeout:
+		if err != nil {
+			log.Println("Error deleting file", err)
+		} else {
+			log.Println("File deleted!")
+		}
+
 	}
 }
 
@@ -107,12 +135,11 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 			longitude = 0.0
 		}
 
-		log.Println(rgbaValue)
-		log.Println(rgbaColors)
-		log.Println(latitude)
-		log.Println(longitude)
+		log.Println("Colors:", rgbaColors)
+		log.Println("Latitude:", latitude)
+		log.Println("Longitude:", longitude)
 
-		var uploadUrl string
+		var uploadPath string
 		//get a ref to the parsed multipart form
 		m := r.MultipartForm
 
@@ -127,8 +154,8 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			//create destination file making sure the path is writeable.
-			uploadUrl = "./upload/" + files[i].Filename
-			dst, err := os.Create(uploadUrl)
+			uploadPath = "./upload/" + files[i].Filename
+			dst, err := os.Create(uploadPath)
 			defer dst.Close()
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -142,15 +169,14 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 		}
 
-		createImage(uuid, uploadUrl, rgbaColors, longitude, latitude)
-		//display success message.
-		//display(w, "upload", "Upload successful.")
+		createImage(uuid, uploadPath, rgbaColors, longitude, latitude)
+
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
 }
 
-func LoadFeatureCollection(inputFilepath string) (*geojson.FeatureCollection, error) {
+func loadFeatureCollection(inputFilepath string) (*geojson.FeatureCollection, error) {
 	b, err := ioutil.ReadFile(inputFilepath)
 	if err != nil {
 		return nil, err
