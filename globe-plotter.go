@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"html/template"
 	"image/color"
@@ -10,9 +11,10 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
-	"github.com/mmcloughlin/globe"
+	globe "github.com/mmcloughlin/globe"
 	geojson "github.com/paulmach/go.geojson"
 )
 
@@ -41,32 +43,25 @@ func display(w http.ResponseWriter, tmpl string, data interface{}) {
 	templates.ExecuteTemplate(w, tmpl+".html", data)
 }
 
-func createImage(filename string, uploadPath string, rgbaColors rgba, longitude float64, latitude float64) string {
-
-	geojson, err := loadFeatureCollection(uploadPath)
-	if err != nil {
-		log.Fatal(err)
-	}
+func createImage(filename string, uploadPath string, rgbaColors rgba, longitude float64, latitude float64, fileType string) string {
 
 	g := globe.New()
+	color := color.RGBA{rgbaColors.R, rgbaColors.G, rgbaColors.B, rgbaColors.A}
+
 	g.DrawGraticule(20.0)
 	g.DrawLandBoundaries()
 	//g.DrawCountryBoundaries()
-
-	color := color.RGBA{rgbaColors.R, rgbaColors.G, rgbaColors.B, rgbaColors.A}
-
-	for _, geometries := range geojson.Features {
-		if geometries.Geometry.IsPoint() {
-			coords := geometries.Geometry.Point
-			// Lat, Lng, something, color
-			g.DrawDot(coords[0], coords[1], 0.02, globe.Color(color))
-		}
-	}
-
 	g.CenterOn(latitude, longitude)
 
+	log.Println(fileType)
+	if fileType == "geojson" {
+		drawFromGeoJSON(uploadPath, g, color)
+	} else if fileType == "csv" {
+		drawFromCSV(uploadPath, g, color)
+	}
+
 	pngPath := "./static/generated/" + filename + ".png"
-	err = g.SavePNG(pngPath, 800)
+	err := g.SavePNG(pngPath, 800)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -157,9 +152,26 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 		//get the *fileheaders
 		files := m.File["geojson"]
-		for i, _ := range files {
+		fileUploaded := files[0]
+
+		isGeoJson := strings.Contains(fileUploaded.Filename, "geojson")
+		isCsv := strings.Contains(fileUploaded.Filename, "csv")
+		fileType := ""
+
+		if isGeoJson {
+			fileType = "geojson"
+		} else if isCsv {
+			fileType = "csv"
+		}
+
+		if fileType != "" {
+
+			log.Println("Upload file type is ", fileType)
+
 			//for each fileheader, get a handle to the actual file
-			file, err := files[i].Open()
+			file, err := fileUploaded.Open()
+			log.Println(file)
+
 			defer file.Close()
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -167,7 +179,8 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 			}
 
 			//create destination file making sure the path is writeable.
-			uploadPath = "./upload/" + uuid + "_" + files[i].Filename
+			uploadPath = "./upload/" + uuid + "_" + fileUploaded.Filename
+
 			dst, err := os.Create(uploadPath)
 			defer dst.Close()
 			if err != nil {
@@ -183,13 +196,13 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 			log.Println("Upload successful: " + uploadPath)
 
+			pngPath := createImage(uuid, uploadPath, rgbaColors, longitude, latitude, fileType)
+
+			// Tidy up files
+			go deleteFile(uploadPath, 1)
+			go deleteFile(pngPath, 30)
+
 		}
-
-		pngPath := createImage(uuid, uploadPath, rgbaColors, longitude, latitude)
-
-		// Tidy up files
-		go deleteFile(uploadPath, 1)
-		go deleteFile(pngPath, 30)
 
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -203,4 +216,103 @@ func loadFeatureCollection(inputFilepath string) (*geojson.FeatureCollection, er
 	}
 
 	return geojson.UnmarshalFeatureCollection(b)
+}
+
+func drawFromGeoJSON(filePath string, g *globe.Globe, globeColor color.RGBA) {
+	geojson, err := loadFeatureCollection(filePath)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, geometries := range geojson.Features {
+		if geometries.Geometry.IsPoint() {
+			coords := geometries.Geometry.Point
+			// Lat, Lng, size, color
+			drawDot(g, globeColor, coords[0], coords[1])
+
+		}
+	}
+}
+
+func drawDot(g *globe.Globe, globeColor color.RGBA, latitude float64, longitude float64) {
+	size := 0.05
+	g.DrawDot(latitude, longitude, size, globe.Color(globeColor))
+}
+
+func drawFromCSV(filePath string, g *globe.Globe, globeColor color.RGBA) {
+
+	log.Println("drawFromCSV called")
+	file, err := os.Open(filePath)
+	if err != nil {
+		log.Println("Error:", err)
+		return
+	}
+
+	log.Println("csv file opened called")
+
+	// automatically call Close() at the end of current method
+	defer file.Close()
+	reader := csv.NewReader(file)
+
+	reader.Comma = ';'
+	lineCount := 0
+	latitude := -1
+	longitude := -1
+
+	for {
+		// read just one record, but we could ReadAll() as well
+		record, err := reader.Read()
+		//log.Println("Read CSV")
+		// end-of-file is fitted into err
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			log.Println("Error:", err)
+			return
+		}
+
+		// record is an array of string so is directly printable
+		//fmt.Println("Record", lineCount, "is", record, "and has", len(record), "fields")
+
+		for i := 0; i < len(record); i++ {
+
+			if lineCount == 0 {
+
+				fieldNames := strings.ToLower(record[i])
+				fieldNamesSlice := strings.Split(fieldNames, ",")
+
+				for index, fieldName := range fieldNamesSlice {
+
+					if fieldName == "latitude" || fieldName == "lat" {
+						latitude = index
+					}
+					if fieldName == "longitude" || fieldName == "lon" || fieldName == "lng" {
+						longitude = index
+					}
+
+				}
+
+			}
+
+			if lineCount > 0 && latitude != -1 && longitude != -1 {
+
+				fieldNames := strings.ToLower(record[i])
+				fieldSlice := strings.Split(fieldNames, ",")
+
+				latitudeVal, latErr := strconv.ParseFloat(fieldSlice[latitude], 64)
+				longitudeVal, lonErr := strconv.ParseFloat(fieldSlice[longitude], 64)
+
+				if latErr == nil && lonErr == nil {
+					log.Println("Drawing CSV Dot", latitudeVal, longitudeVal)
+					drawDot(g, globeColor, latitudeVal, longitudeVal)
+				} else {
+					log.Println("Error with latitude or longitude", lonErr, latErr)
+				}
+
+			}
+		}
+
+		lineCount++
+	}
+
 }
