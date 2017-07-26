@@ -21,6 +21,7 @@
           <fieldset>
             <input type="file" name="geojson" id="geojson">
             <br>
+            <label id="file-info">  </label>
             <br>
               <div class="row">
                   <label> Center Latitude (Optional) </label>
@@ -38,7 +39,7 @@
 
             <br>
             <input type="hidden" name="uuid" value="">
-            <input type="submit" name="submit" value="Submit">
+            <input id="submit" type="submit" name="submit" value="Submit">
         </fieldset>
       </form>
 
@@ -62,6 +63,7 @@
         crossorigin="anonymous"></script>
     <script src="http://wzrd.in/standalone/uuid%2Fv4@latest"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/spectrum/1.8.0/spectrum.min.js"></script>
+    <script src="https://npmcdn.com/csv2geojson@latest/csv2geojson.js"></script>
     <script src="https://npmcdn.com/@turf/turf/turf.min.js"></script>
     <script src="js/globe.js"></script>
 

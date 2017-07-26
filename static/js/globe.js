@@ -27,12 +27,24 @@
                     // Closure to capture the file information.
                     reader.onload = (function(json) {
                         return function(loadEvent) {
-                            var centroidGeoJson = JSON.parse(loadEvent.target.result);
-                            var centroid = turf.centroid(centroidGeoJson);
-                            var coords = centroid.geometry.coordinates;
-                            setLatitude(coords[1].toFixed(5));
-                            setLongitude(coords[0].toFixed(5));
-                            console.log(coords);
+                            $("#file-info").text("");
+                            console.log(json);
+                            var type;
+                            if (json.name.indexOf("csv") !== -1) type = "csv";
+                            else if (json.name.indexOf("json") !== -1) type = "geojson";
+                            var fileData = loadEvent.target.result;
+                            var centroidGeoJson;
+
+                            console.log(type);
+                            if (type === "geojson") {
+                                handleGeoJson(fileData);
+                            }
+                            else if (type === "csv") {
+                                handleCsv(fileData);
+                            } else {
+                                $("#file-info").text("File type not recognised");
+                            }
+                          
                         }
                     
                     })(file);
@@ -45,6 +57,38 @@
         }
 
     });
+    
+    function handleGeoJson(fileData) {
+        centroidGeoJson = JSON.parse(fileData);
+        processGeoJson(centroidGeoJson);
+        $("#file-info").text("GeoJSON file selected; centroid found!");
+        $("#submit").prop('disabled', false);
+    }
+
+    function handleCsv(fileData) {
+        csv2geojson.csv2geojson(fileData, 
+            function(err, data) {
+                if (err) { 
+                    console.error(err);
+                    $("#file-info").text("Problem processing CSV");
+                    $("#submit").prop('disabled', true);
+                }
+                else {
+                    processGeoJson(data);
+                    $("#file-info").text("CSV file selected; centroid found!");
+                    $("#submit").prop('disabled', false);
+                }
+            }
+        );
+    }
+
+    function processGeoJson(geojson) {
+        var centroid = turf.centroid(geojson);
+        var coords = centroid.geometry.coordinates;
+        console.log("Centroid is: ", coords);
+        setLatitude(coords[1].toFixed(5));
+        setLongitude(coords[0].toFixed(5));
+    }
     
     $(form).submit(function (event) {
         var data = new FormData($(form)[0]);

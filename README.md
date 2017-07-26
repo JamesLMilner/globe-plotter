@@ -12,6 +12,8 @@ Visualise GeoJSON on a skeleton globe.
 - Spectrum 
 - Skeleton CSS
 - Node UUID
+- turf.js
+- csv2geojson (Mapbox)
 
 # License 
 MIT License
