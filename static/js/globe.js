@@ -100,6 +100,10 @@
         console.log("longitude", $("input[name=longitude]").val());
      
         event.preventDefault();
+        $('.status').text("File sent! Awaiting response...");
+        $('.output').empty();
+        $('#spinner').show();
+
         $.ajax({
             url:'/upload',
             type:'post',
@@ -107,7 +111,8 @@
             processData: false,
             contentType: false,
             success: function(){
-                $('.status').text("Upload sent!");
+                $('.status').text("Image received!");
+                $('#spinner').hide();
                 $('.output').empty();
                 var img = '<img src="/generated/' + uuid + '.png">';
                 console.log(img);
