@@ -46,7 +46,8 @@ func display(w http.ResponseWriter, tmpl string, data interface{}) {
 func createImage(filename string, uploadPath string, rgbaColors rgba, longitude float64, latitude float64, fileType string) string {
 
 	g := globe.New()
-	color := color.RGBA{rgbaColors.R, rgbaColors.G, rgbaColors.B, rgbaColors.A}
+	alpha := uint8(rgbaColors.A * 255)
+	color := color.NRGBA{rgbaColors.R, rgbaColors.G, rgbaColors.B, alpha}
 
 	g.DrawGraticule(20.0)
 	g.DrawLandBoundaries()
@@ -94,10 +95,10 @@ func deleteFile(path string, seconds int) {
 
 // For packing values into
 type rgba struct {
-	R uint8 `json:"r"`
-	G uint8 `json:"g"`
-	B uint8 `json:"b"`
-	A uint8 `json:"a"`
+	R uint8   `json:"r"`
+	G uint8   `json:"g"`
+	B uint8   `json:"b"`
+	A float64 `json:"a"`
 }
 
 // Return the RGBA color as a nice struct
@@ -154,13 +155,13 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		files := m.File["geojson"]
 		fileUploaded := files[0]
 
-		isGeoJson := strings.Contains(fileUploaded.Filename, "geojson")
-		isCsv := strings.Contains(fileUploaded.Filename, "csv")
+		isGeoJSON := strings.Contains(fileUploaded.Filename, "geojson")
+		isCSV := strings.Contains(fileUploaded.Filename, "csv")
 		fileType := ""
 
-		if isGeoJson {
+		if isGeoJSON {
 			fileType = "geojson"
-		} else if isCsv {
+		} else if isCSV {
 			fileType = "csv"
 		}
 
@@ -218,7 +219,12 @@ func loadFeatureCollection(inputFilepath string) (*geojson.FeatureCollection, er
 	return geojson.UnmarshalFeatureCollection(b)
 }
 
-func drawFromGeoJSON(filePath string, g *globe.Globe, globeColor color.RGBA) {
+func drawDot(g *globe.Globe, globeColor color.NRGBA, latitude float64, longitude float64) {
+	size := 0.05
+	g.DrawDot(latitude, longitude, size, globe.Color(globeColor))
+}
+
+func drawFromGeoJSON(filePath string, g *globe.Globe, globeColor color.NRGBA) {
 	geojson, err := loadFeatureCollection(filePath)
 	if err != nil {
 		log.Fatal(err)
@@ -234,12 +240,7 @@ func drawFromGeoJSON(filePath string, g *globe.Globe, globeColor color.RGBA) {
 	}
 }
 
-func drawDot(g *globe.Globe, globeColor color.RGBA, latitude float64, longitude float64) {
-	size := 0.05
-	g.DrawDot(latitude, longitude, size, globe.Color(globeColor))
-}
-
-func drawFromCSV(filePath string, g *globe.Globe, globeColor color.RGBA) {
+func drawFromCSV(filePath string, g *globe.Globe, globeColor color.NRGBA) {
 
 	log.Println("drawFromCSV called")
 	file, err := os.Open(filePath)
