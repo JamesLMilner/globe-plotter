@@ -143,11 +143,10 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		log.Println("Latitude:", latitude)
 		log.Println("Longitude:", longitude)
 
-		var uploadPath string
-		//get a ref to the parsed multipart form
+		// The reference to the form
 		m := r.MultipartForm
 
-		//get the *fileheaders
+		// Get the *fileheaders
 		files := m.File["geojson"]
 		fileUploaded := files[0]
 
@@ -163,9 +162,10 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 		if fileType != "" {
 
+			var uploadPath string
 			log.Println("Upload file type is ", fileType)
 
-			//for each fileheader, get a handle to the actual file
+			// For each fileheader, get a handle to the actual file
 			file, err := fileUploaded.Open()
 			log.Println(file)
 
@@ -175,7 +175,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			//create destination file making sure the path is writeable.
+			// Create destination file making sure the path is writeable.
 			uploadPath = "./upload/" + uuid + "_" + fileUploaded.Filename
 
 			dst, err := os.Create(uploadPath)
@@ -185,7 +185,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			//copy the uploaded file to the destination file
+			// Copy the uploaded file to the destination file
 			if _, err := io.Copy(dst, file); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -193,6 +193,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 			log.Println("Upload successful: " + uploadPath)
 
+			// Create the image
 			pngPath := createImage(uuid, uploadPath, rgbaColors, longitude, latitude, fileType)
 
 			// Tidy up files
