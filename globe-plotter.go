@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/csv"
 	"encoding/json"
-	"html/template"
 	"image/color"
 	"io"
 	"io/ioutil"
@@ -37,10 +36,10 @@ func getPort() string {
 	return port
 }
 
-var templates = template.Must(template.ParseFiles("static/index.html"))
+//var templates = template.Must(template.ParseFiles("static/index.html"))
 
 func display(w http.ResponseWriter, tmpl string, data interface{}) {
-	templates.ExecuteTemplate(w, tmpl+".html", data)
+
 }
 
 func createImage(filename string, uploadPath string, rgbaColors rgba, longitude float64, latitude float64, fileType string) string {
@@ -117,9 +116,6 @@ func getRgbaColor(rgbaStr string) rgba {
 //This is where the action happens.
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
-	//GET displays the upload form.
-	case "GET":
-		display(w, "upload", nil)
 
 	//POST takes the uploaded file(s) and saves it to disk.
 	case "POST":
